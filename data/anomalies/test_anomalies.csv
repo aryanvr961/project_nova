@@ -1,0 +1,41 @@
+id,date,email,phone,value,error_type,anomaly_hint
+1,03-12-2024,valid1@example.com,9876543210,03-12-2024,date_format_error,date token format mismatch
+2,2024/03/12,valid2@example.com,9876543211,2024/03/12,date_format_error,date token format mismatch
+3,March 12 2024,valid3@example.com,9876543212,March 12 2024,date_format_error,date token format mismatch
+4,03/12/24,valid4@example.com,9876543213,03/12/24,date_format_error,date token format mismatch
+5,12-Mar-2024,valid5@example.com,9876543214,12-Mar-2024,date_format_error,date token format mismatch
+6,2024.03.12,valid6@example.com,9876543215,2024.03.12,date_format_error,date token format mismatch
+7,12/03/2024,valid7@example.com,9876543216,12/03/2024,date_format_error,date token format mismatch
+8,03 12 2024,valid8@example.com,9876543217,03 12 2024,date_format_error,date token format mismatch
+9,Mar-12-24,valid9@example.com,9876543218,Mar-12-24,date_format_error,date token format mismatch
+10,2024-03-12,abc@,9876543220,abc@,email_format_error,email token malformed address
+11,2024-03-12,test@@mail,9876543221,test@@mail,email_format_error,email token malformed address
+12,2024-03-12,userdomain.com,9876543222,userdomain.com,email_format_error,email token malformed address
+13,2024-03-12,no_at_symbol.mail,9876543223,no_at_symbol.mail,email_format_error,email token malformed address
+14,2024-03-12,user@domain,9876543224,user@domain,email_format_error,email token malformed address
+15,2024-03-12,@mail.com,9876543225,@mail.com,email_format_error,email token malformed address
+16,2024-03-12,user..dot@mail.com,9876543226,user..dot@mail.com,email_format_error,email token malformed address
+17,2024-03-12,user mail.com,9876543227,user mail.com,email_format_error,email token malformed address
+18,2024-03-12,user#domain.com,9876543228,user#domain.com,email_format_error,email token malformed address
+19,2024-03-12,valid19@example.com,123,123,phone_format_error,phone token invalid length
+20,2024-03-12,valid20@example.com,9999999999,9999999999,phone_format_error,phone token invalid length
+21,2024-03-12,valid21@example.com,+91-9999999999,+91-9999999999,phone_format_error,phone token invalid length
+22,2024-03-12,valid22@example.com,000,000,phone_format_error,phone token invalid length
+23,2024-03-12,valid23@example.com,12-34,12-34,phone_format_error,phone token invalid length
+24,2024-03-12,valid24@example.com,+1(555),+1(555),phone_format_error,phone token invalid length
+25,2024-03-12,valid25@example.com,98x76,98x76,phone_format_error,phone token invalid length
+26,2024-03-12,valid26@example.com,++++,++++,phone_format_error,phone token invalid length
+27,2024-03-12,valid27@example.com,phone123,phone123,phone_format_error,phone token invalid length
+28,invalid_date,valid28@example.com,9876543280,invalid_date,mixed_data_error,mixed null and invalid sentinel
+29,N/A,valid29@example.com,9876543281,N/A,mixed_data_error,mixed null and invalid sentinel
+30,NULL,valid30@example.com,9876543282,NULL,mixed_data_error,mixed null and invalid sentinel
+31,none,valid31@example.com,9876543283,none,mixed_data_error,mixed null and invalid sentinel
+32,0000-00-00,valid32@example.com,9876543284,0000-00-00,mixed_data_error,mixed null and invalid sentinel
+33,31/31/2024,valid33@example.com,9876543285,31/31/2024,mixed_data_error,mixed null and invalid sentinel
+34,13-13-2024,valid34@example.com,9876543286,13-13-2024,mixed_data_error,mixed null and invalid sentinel
+35,not_available,valid35@example.com,9876543287,not_available,mixed_data_error,mixed null and invalid sentinel
+36,??,valid36@example.com,9876543288,??,mixed_data_error,mixed null and invalid sentinel
+37,03-12-2024,valid37@example.com,9876543290,03-12-2024,date_format_error,date token format mismatch
+38,2024/03/12,valid38@example.com,9876543291,2024/03/12,date_format_error,date token format mismatch
+39,2024-03-12,abc@,9876543292,abc@,email_format_error,email token malformed address
+40,2024-03-12,valid40@example.com,123,123,phone_format_error,phone token invalid length
