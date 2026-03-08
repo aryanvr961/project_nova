@@ -1,0 +1,1 @@
+# Purpose: Hashing and integrity-check helper functions.

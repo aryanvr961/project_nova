@@ -1,0 +1,1 @@
+# Purpose: Audit trail writer for security and compliance events.

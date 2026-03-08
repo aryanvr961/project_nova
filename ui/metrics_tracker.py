@@ -1,0 +1,1 @@
+# Purpose: UI metrics tracking module for performance monitoring.

@@ -1,0 +1,1 @@
+# Purpose: UI dashboard module for system overview and status.

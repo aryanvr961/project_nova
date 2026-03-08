@@ -1,0 +1,1 @@
+# Purpose: UI view module for quarantined records inspection.
