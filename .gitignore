@@ -6,3 +6,4 @@ venv/
 data/clean/*
 data/staging/*
 data/production/*
+data/vault/
