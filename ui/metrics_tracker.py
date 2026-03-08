@@ -1,1 +1,10 @@
-# Purpose: UI metrics tracking module for performance monitoring.
+"""
+Module: SYSTEM METRICS TRACKER
+Owner: Dhruv
+Purpose:
+- Monitor system performance.
+Responsibilities:
+- Track anomaly rate.
+- Track AI success rate.
+- Display monitoring charts.
+"""
