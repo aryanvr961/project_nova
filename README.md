@@ -1,11 +1,11 @@
 ﻿# Project Nova
 
 <p align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&height=180&text=Project%20Nova&fontAlign=50&fontAlignY=38&color=0:0f172a,50:1e3a8a,100:0ea5e9&fontColor=ffffff&desc=AI-Assisted%20Data%20Observability%20%26%20Auto-Healing%20Pipeline&descAlignY=60&animation=fadeIn" alt="Project Nova" />
+  <img alt="Project Nova Banner" src="assets/banner.svg" />
 </p>
 
 <p align="center">
-  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=18&pause=900&color=0EA5E9&center=true&vCenter=true&width=900&lines=Local-first+AI+pipeline+for+data+quality+and+safe+remediation;Detect+anomalies+%E2%86%92+cluster+patterns+%E2%86%92+generate+fix+logic+%E2%86%92+apply+with+guardrails;Enterprise+goal%3A+zero-data-loss%2C+auditability%2C+and+compliance-ready+workflows" alt="Typing Animation" />
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&amp;weight=600&amp;size=18&amp;pause=900&amp;color=0EA5E9&amp;center=true&amp;vCenter=true&amp;width=900&amp;lines=Local-first+AI+pipeline+for+data+quality+and+safe+remediation;Detect+anomalies+%E2%86%92+cluster+patterns+%E2%86%92+generate+fix+logic+%E2%86%92+apply+with+guardrails;Enterprise+goal%3A+zero-data-loss%2C+auditability%2C+and+compliance-ready+workflows" alt="Typing Animation" />
 </p>
 
 <p align="center">
@@ -17,13 +17,13 @@
 
 ## What is Project Nova?
 
-Project Nova is an **AI-assisted data observability pipeline** designed to safely handle bad records in ETL and data migration workflows.
+Project Nova is an **AI-assisted data observability** and anomaly remediation pipeline designed to safely detect, cluster, and correct problematic records in ETL and data migration workflows.
 
 Core idea:
 - Let 99% clean data move through a fast lane.
 - Isolate the 1% problematic rows.
 - Cluster similar anomaly patterns.
-- Use AI to generate **fix logic**, not direct blind edits.
+- Use AI to generate deterministic transformation rules, not direct blind edits on the data.
 - Apply fixes with guardrails, audit logs, and reversible workflows.
 
 ## 📄 Research Report & System Architecture
@@ -34,18 +34,18 @@ This repository includes a detailed technical research report that outlines the 
 - The core concept of AI-assisted Data Observability and anomaly remediation in ETL pipelines.
 - Implementation of semantic anomaly clustering using vector embeddings to compress large volumes of data errors into actionable patterns.
 - Use of air-gapped Small Language Models (SLMs) to generate deterministic data transformation rules without exposing sensitive data to external APIs.
-- How AI is integrated with deterministic validation layers to detect, cluster, and safely remediate data anomalies in modern data pipelines
+- How AI is integrated with deterministic validation layers to detect, cluster, and safely remediate data anomalies in modern data pipelines.
 
 [👉 Click here to read the full Technical Research Report](https://docs.google.com/document/d/1cKEBZS5nA8fz5g_W1S8T49I5LjeO96xW/edit?usp=drivesdk&ouid=117337334576397276483&rtpof=true&sd=true)
 
 ## Why this project exists
 
-Traditional ETL tools are good at data movement, but weak at semantic anomaly understanding. This creates three major problems:
+Traditional ETL tools are optimized for data movement but lack semantic understanding of anomalies. When malformed records appear, pipelines either fail or propagate corrupted data downstream. This often forces engineers to manually write SQL or scripts for every recurring issue. This creates three major problems:
 - High manual effort for recurring SQL/script-based fixes.
 - Throughput issues when anomaly volume spikes.
 - Compliance risk when sensitive data is sent to external LLM APIs.
 
-Project Nova addresses this with a **local-first, explainable, replay-safe remediation architecture**.
+Project Nova addresses this with a **local-first, semantic clustering and explainable remediation architecture** designed to detect anomaly patterns and safely generate transformation logic..
 
 ## End-to-End Flow (Simple Language)
 
@@ -60,9 +60,9 @@ Project Nova addresses this with a **local-first, explainable, replay-safe remed
    - Reuse pattern cache to detect repeated anomaly signatures.
 3. **Phase 3 - SLM Remediation (Scaffold)**
    - Send cluster samples to the local model.
-   - Generate safe, structured transformation logic.
+   - Generate safe, structured transformation logic in a restricted output format (sandboxed deterministic rules) that can be executed safely by downstream phases.
 4. **Phase 4 - Execution Engine (Scaffold)**
-   - Apply approved transformation logic at scale.
+   - Apply approved transformation rules to all rows belonging to a specific anomaly cluster.
 5. **Phase 5 - Guardrails (Scaffold)**
    - Enforce confidence checks, risk routing, and quarantine policies.
 6. **Phase 6 - Promotion (Scaffold)**
@@ -139,13 +139,13 @@ python main.py
 ## Design Principles
 
 - **Decoupled pipeline**: anomaly processing should not block ingestion throughput.
-- **Air-gapped first mindset**: prioritize local inference for data sovereignty.
+- **Air-gapped AI architecture**: anomaly remediation logic is generated using local models to avoid sending sensitive enterprise data to external APIs.
 - **Auditability**: every remediation decision should be traceable.
 - **Reversibility**: unsafe outputs should be quarantined and replay-safe.
 
 ## Roadmap (Practical Next Steps)
 
-- Implement Phase 1 deterministic validator with schema diff + clean/anomaly split.
+- Implement Phase 1 deterministic validator with schema validation, rule checks, and clean/anomaly dataset separation.
 - Complete Phase 3 prompt-constrained SLM output schema.
 - Implement Phase 4 safe transformation executor with rollback metadata.
 - Add Phase 5 confidence thresholds + circuit breaker + quarantine flow.
