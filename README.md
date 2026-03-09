@@ -1,7 +1,7 @@
 ﻿# Project Nova
 
 <p align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&height=180&text=Project%20Nova&fontAlign=50&fontAlignY=38&color=0:0f172a,50:1e3a8a,100:0ea5e9&fontColor=ffffff&desc=AI-Assisted%20Data%20Observability%20%26%20Auto-Healing%20Pipeline&descAlignY=60&animation=fadeIn" alt="Project Nova Banner" />
+  <img src="https://capsule-render.vercel.app/api?type=waving&height=180&text=Project%20Nova&fontAlign=50&fontAlignY=38&color=0:0f172a,50:1e3a8a,100:0ea5e9&fontColor=ffffff&desc=AI-Assisted%20Data%20Observability%20%26%20Auto-Healing%20Pipeline&descAlignY=60&animation=fadeIn" alt="Project Nova" />
 </p>
 
 <p align="center">
@@ -25,6 +25,18 @@ Core idea:
 - Cluster similar anomaly patterns.
 - Use AI to generate **fix logic**, not direct blind edits.
 - Apply fixes with guardrails, audit logs, and reversible workflows.
+
+## 📄 Research Report & System Architecture
+
+This repository includes a detailed technical research report that outlines the complete architecture and vision behind **Project Nova**. 
+
+**Key highlights of the report:**
+- The core concept of AI-assisted Data Observability and anomaly remediation in ETL pipelines.
+- Implementation of semantic anomaly clustering using vector embeddings to compress large volumes of data errors into actionable patterns.
+- Use of air-gapped Small Language Models (SLMs) to generate deterministic data transformation rules without exposing sensitive data to external APIs.
+- How AI is integrated with deterministic validation layers to detect, cluster, and safely remediate data anomalies in modern data pipelines
+
+[👉 Click here to read the full Technical Research Report]((https://docs.google.com/document/d/1cKEBZS5nA8fz5g_W1S8T49I5LjeO96xW/edit?usp=drivesdk&ouid=117337334576397276483&rtpof=true&sd=true))
 
 ## Why this project exists
 
