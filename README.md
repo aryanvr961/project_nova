@@ -36,7 +36,7 @@ This repository includes a detailed technical research report that outlines the 
 - Use of air-gapped Small Language Models (SLMs) to generate deterministic data transformation rules without exposing sensitive data to external APIs.
 - How AI is integrated with deterministic validation layers to detect, cluster, and safely remediate data anomalies in modern data pipelines
 
-[👉 Click here to read the full Technical Research Report]((https://docs.google.com/document/d/1cKEBZS5nA8fz5g_W1S8T49I5LjeO96xW/edit?usp=drivesdk&ouid=117337334576397276483&rtpof=true&sd=true))
+[👉 Click here to read the full Technical Research Report](https://docs.google.com/document/d/1cKEBZS5nA8fz5g_W1S8T49I5LjeO96xW/edit?usp=drivesdk&ouid=117337334576397276483&rtpof=true&sd=true)
 
 ## Why this project exists
 
