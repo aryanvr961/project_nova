@@ -1,0 +1,8 @@
+Rule 1: Prefer conservative transformations over destructive edits.
+Rule 2: If anomaly pattern is ambiguous, quarantine the cluster.
+Rule 3: Keep transformations deterministic and replay-safe.
+Rule 4: Date format anomalies should normalize toward ISO-like representations only after validation.
+Rule 5: Numeric formatting anomalies may remove commas or trim whitespace, but must not invent values.
+Rule 6: Null-heavy anomaly clusters should preserve null semantics unless a trusted default is explicitly provided.
+Rule 7: String corruption patterns should be routed to quarantine unless cleanup is obvious and reversible.
+Rule 8: Every remediation must include reasoning and a fallback value.

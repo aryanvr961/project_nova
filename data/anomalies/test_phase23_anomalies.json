@@ -1,0 +1,114 @@
+[
+  {
+    "id": 101,
+    "column_name": "transaction_date",
+    "value": "03-12-2024",
+    "error_type": "date_format_error",
+    "anomaly_hint": "date token format mismatch"
+  },
+  {
+    "id": 102,
+    "column_name": "transaction_date",
+    "value": "2024/03/12",
+    "error_type": "date_format_error",
+    "anomaly_hint": "date token format mismatch"
+  },
+  {
+    "id": 103,
+    "column_name": "transaction_date",
+    "value": "March 12 2024",
+    "error_type": "date_format_error",
+    "anomaly_hint": "date token format mismatch"
+  },
+  {
+    "id": 104,
+    "column_name": "transaction_date",
+    "value": "12-Mar-2024",
+    "error_type": "date_format_error",
+    "anomaly_hint": "date token format mismatch"
+  },
+  {
+    "id": 201,
+    "column_name": "customer_email",
+    "value": "abc@",
+    "error_type": "email_format_error",
+    "anomaly_hint": "email token malformed address"
+  },
+  {
+    "id": 202,
+    "column_name": "customer_email",
+    "value": "test@@mail",
+    "error_type": "email_format_error",
+    "anomaly_hint": "email token malformed address"
+  },
+  {
+    "id": 203,
+    "column_name": "customer_email",
+    "value": "userdomain.com",
+    "error_type": "email_format_error",
+    "anomaly_hint": "email token malformed address"
+  },
+  {
+    "id": 204,
+    "column_name": "customer_email",
+    "value": "user mail.com",
+    "error_type": "email_format_error",
+    "anomaly_hint": "email token malformed address"
+  },
+  {
+    "id": 301,
+    "column_name": "amount",
+    "value": "1,200.50",
+    "error_type": "numeric_format_error",
+    "anomaly_hint": "amount contains numeric separator noise"
+  },
+  {
+    "id": 302,
+    "column_name": "amount",
+    "value": " 999.00 ",
+    "error_type": "numeric_format_error",
+    "anomaly_hint": "amount contains numeric separator noise"
+  },
+  {
+    "id": 303,
+    "column_name": "amount",
+    "value": "5,00,000",
+    "error_type": "numeric_format_error",
+    "anomaly_hint": "amount contains numeric separator noise"
+  },
+  {
+    "id": 304,
+    "column_name": "amount",
+    "value": "7 500",
+    "error_type": "numeric_format_error",
+    "anomaly_hint": "amount contains numeric separator noise"
+  },
+  {
+    "id": 401,
+    "column_name": "customer_name",
+    "value": null,
+    "error_type": "null_block_error",
+    "anomaly_hint": "value is missing or sentinel null"
+  },
+  {
+    "id": 402,
+    "column_name": "customer_name",
+    "value": "NULL",
+    "error_type": "null_block_error",
+    "anomaly_hint": "value is missing or sentinel null"
+  },
+  {
+    "id": 403,
+    "column_name": "customer_name",
+    "value": "N/A",
+    "error_type": "null_block_error",
+    "anomaly_hint": "value is missing or sentinel null"
+  },
+  {
+    "id": 404,
+    "column_name": "customer_name",
+    "value": "",
+    "error_type": "null_block_error",
+    "anomaly_hint": "value is missing or sentinel null"
+  }
+]

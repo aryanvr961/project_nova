@@ -1,0 +1,12 @@
+Use the retrieved rules and the anomaly samples to choose one of:
+- lambda: safe single-expression normalization
+- rule: conservative rule placeholder for downstream executor
+- quarantine: manual review required
+
+Preferred mappings:
+- date_format -> conservative rule unless the target normalization is obvious
+- null_fill -> null-preserving rule
+- type_cast -> string cleanup or numeric-safe normalization
+- string_corrupt -> quarantine unless cleanup is trivial
+
+Output must remain structured and machine-readable.
