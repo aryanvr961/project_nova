@@ -1,0 +1,28 @@
+# Project Nova
+# Recommended setup:
+#   python -m venv .venv
+#   .venv\Scripts\Activate.ps1
+#   python -m pip install --upgrade pip
+#   pip install -r requirements.txt
+#
+# Notes:
+# - Ollama is used as a local model runtime for Phase 3, but it is NOT a pip package.
+#   Install it separately from https://ollama.com/ and pull the required model.
+# - Python target: 3.11+
+
+
+# Core pipeline and data processing
+polars>=0.20.0,<2.0.0
+
+
+# Embeddings and semantic retrieval
+sentence-transformers>=2.2.0,<4.0.0
+chromadb>=0.4.0,<1.0.0
+
+
+# Provider/API communication
+requests>=2.31.0,<3.0.0
+
+
+# Test and local validation
+pytest>=7.4.0,<9.0.0

@@ -60,7 +60,7 @@ def _print_phase3(result: dict[str, Any]) -> None:
 
 
 def main() -> None:
-    provider = os.getenv("PHASE3_PROVIDER", "mock")
+    provider = os.getenv("PHASE3_PROVIDER", "ollama")
     rows = _load_rows(DATASET_PATH)
     print(f"Loaded anomalies: {len(rows)} from {DATASET_PATH}")
     print(f"Phase 3 provider: {provider}")

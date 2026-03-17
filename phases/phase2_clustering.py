@@ -12,6 +12,7 @@ Responsibilities:
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import hashlib
 import json
 import math
@@ -22,8 +23,11 @@ from utils.embedding_engine import generate_embeddings
 
 
 ANOMALY_DIR = Path("data/anomalies")
-CHROMA_DIR = Path("data/vault/chromadb")
+VAULT_DIR = Path("data/vault")
+CHROMA_DIR = VAULT_DIR / "chromadb"
 COLLECTION_NAME = "nova_anomalies"
+CLUSTER_MEMORY_COLLECTION = "nova_cluster_memory"
+CLUSTER_REGISTRY_FILE = VAULT_DIR / "cluster_registry.json"
 SIMILARITY_THRESHOLD = 0.85
 MIN_SAMPLE_SIZE = 3
 MAX_SAMPLE_SIZE = 5
@@ -104,6 +108,131 @@ def _store_in_chromadb(ids: list[str], texts: list[str], embeddings: list[list[f
     metadatas: list[Metadata] = [
         cast(Metadata, {"text": text, "row": json.dumps(row, default=str)})
         for text, row in zip(texts, rows)
+    ]
+    collection.upsert(ids=ids, embeddings=chroma_embeddings, metadatas=metadatas, documents=texts)
+
+
+def _load_cluster_registry() -> dict[str, Any]:
+    if not CLUSTER_REGISTRY_FILE.exists():
+        return {"version": 1, "next_id": 1, "patterns": {}}
+    try:
+        payload = json.loads(CLUSTER_REGISTRY_FILE.read_text(encoding="utf-8"))
+        if isinstance(payload, dict):
+            payload.setdefault("version", 1)
+            payload.setdefault("next_id", 1)
+            payload.setdefault("patterns", {})
+            return payload
+    except Exception:
+        pass
+    return {"version": 1, "next_id": 1, "patterns": {}}
+
+
+def _save_cluster_registry(registry: dict[str, Any]) -> None:
+    VAULT_DIR.mkdir(parents=True, exist_ok=True)
+    CLUSTER_REGISTRY_FILE.write_text(
+        json.dumps(registry, ensure_ascii=True, indent=2, default=str),
+        encoding="utf-8",
+    )
+
+
+def _now_utc() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _assign_cluster_uid(
+    *,
+    pattern_key: str,
+    runtime_cluster_id: str,
+    registry: dict[str, Any],
+) -> str:
+    patterns = registry.setdefault("patterns", {})
+    entry = patterns.get(pattern_key)
+    if isinstance(entry, dict) and isinstance(entry.get("cluster_uid"), str):
+        entry["last_seen_at"] = _now_utc()
+        entry["seen_count"] = int(entry.get("seen_count", 0)) + 1
+        entry["latest_runtime_cluster_id"] = runtime_cluster_id
+        return entry["cluster_uid"]
+
+    next_id = int(registry.get("next_id", 1))
+    cluster_uid = f"nova_cluster_{next_id:05d}"
+    registry["next_id"] = next_id + 1
+    patterns[pattern_key] = {
+        "cluster_uid": cluster_uid,
+        "first_seen_at": _now_utc(),
+        "last_seen_at": _now_utc(),
+        "seen_count": 1,
+        "latest_runtime_cluster_id": runtime_cluster_id,
+    }
+    return cluster_uid
+
+
+def _infer_target_column(rows: list[dict[str, Any]]) -> str:
+    for row in rows:
+        if not isinstance(row, dict) or not row:
+            continue
+        for preferred in ("column_name", "field", "column"):
+            if preferred in row and row.get(preferred):
+                return str(row.get(preferred))
+        if "value" in row and len(row) > 1:
+            for key in row.keys():
+                if key != "value":
+                    return str(key)
+        return str(next(iter(row.keys())))
+    return ""
+
+
+def _build_cluster_document(cluster: dict[str, Any], sample_rows: list[dict[str, Any]]) -> str:
+    target_column = _infer_target_column(sample_rows)
+    sample_values: list[str] = []
+    for row in sample_rows[:5]:
+        if isinstance(row, dict):
+            if "value" in row:
+                sample_values.append(str(row.get("value")))
+            elif target_column and target_column in row:
+                sample_values.append(str(row.get(target_column)))
+    payload = {
+        "cluster_uid": cluster["cluster_uid"],
+        "runtime_cluster_id": cluster["cluster_id"],
+        "pattern_key": cluster["pattern_key"],
+        "size": cluster["size"],
+        "target_column": target_column,
+        "sample_values": sample_values,
+    }
+    return json.dumps(payload, ensure_ascii=True, default=str)
+
+
+def _store_cluster_memory_in_chromadb(cluster_documents: list[dict[str, Any]]) -> None:
+    if not cluster_documents:
+        return
+    try:
+        import chromadb
+        from chromadb.api.types import Embedding, Metadata
+    except Exception as exc:
+        print(f"[Phase 2] Cluster memory store unavailable: {exc}")
+        return
+
+    texts = [item["document"] for item in cluster_documents]
+    embeddings = generate_embeddings(texts)
+    ids = [item["cluster_uid"] for item in cluster_documents]
+
+    CHROMA_DIR.mkdir(parents=True, exist_ok=True)
+    client = chromadb.PersistentClient(path=str(CHROMA_DIR))
+    collection = client.get_or_create_collection(name=CLUSTER_MEMORY_COLLECTION)
+    chroma_embeddings: list[Embedding] = [cast(Embedding, vector) for vector in embeddings]
+    metadatas: list[Metadata] = [
+        cast(
+            Metadata,
+            {
+                "cluster_uid": item["cluster_uid"],
+                "runtime_cluster_id": item["cluster_id"],
+                "pattern_key": item["pattern_key"],
+                "size": item["size"],
+                "target_column": item["target_column"],
+                "sample_rows_json": json.dumps(item["sample_rows"], ensure_ascii=True, default=str),
+                "member_ids_json": json.dumps(item["member_ids"], ensure_ascii=True, default=str),
+            },
+        )
+        for item in cluster_documents
     ]
     collection.upsert(ids=ids, embeddings=chroma_embeddings, metadatas=metadatas, documents=texts)
 
@@ -210,24 +339,58 @@ def run(context: dict) -> dict:
     if not isinstance(pattern_cache, dict):
         pattern_cache = {}
 
+    cluster_registry = _load_cluster_registry()
     output_clusters: list[dict[str, Any]] = []
+    cluster_documents: list[dict[str, Any]] = []
     for cluster in raw_clusters:
         sample_rows = _sample_rows(cluster["member_rows"])
         key = _pattern_key(cluster["member_texts"], cluster["centroid"])
+        cluster_uid = _assign_cluster_uid(
+            pattern_key=key,
+            runtime_cluster_id=cluster["cluster_id"],
+            registry=cluster_registry,
+        )
         cached_cluster_id = pattern_cache.get(key)
         if cached_cluster_id is None:
-            pattern_cache[key] = cluster["cluster_id"]
+            pattern_cache[key] = cluster_uid
+
+        target_column = _infer_target_column(sample_rows)
+        cluster_documents.append(
+            {
+                "cluster_uid": cluster_uid,
+                "cluster_id": cluster["cluster_id"],
+                "pattern_key": key,
+                "size": len(cluster["member_rows"]),
+                "sample_rows": sample_rows,
+                "member_ids": cluster["member_ids"],
+                "target_column": target_column,
+                "document": _build_cluster_document(
+                    {
+                        "cluster_uid": cluster_uid,
+                        "cluster_id": cluster["cluster_id"],
+                        "pattern_key": key,
+                        "size": len(cluster["member_rows"]),
+                    },
+                    sample_rows,
+                ),
+            }
+        )
 
         output_clusters.append(
             {
                 "cluster_id": cluster["cluster_id"],
+                "cluster_uid": cluster_uid,
                 "sample_rows": sample_rows,
                 "size": len(cluster["member_rows"]),
                 "member_ids": cluster["member_ids"],
                 "cache_hit": cached_cluster_id is not None,
                 "pattern_key": key,
+                "target_column": target_column,
             }
         )
+
+    _save_cluster_registry(cluster_registry)
+    _store_cluster_memory_in_chromadb(cluster_documents)
 
     updated_context["clusters"] = output_clusters
     updated_context["pattern_cache"] = pattern_cache
