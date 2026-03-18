@@ -10,10 +10,10 @@
 
 <p align="center">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white">
-  <img alt="Status" src="https://img.shields.io/badge/Status-Phase%201--4%20Working-22C55E">
+  <img alt="Status" src="https://img.shields.io/badge/Status-Phase%201--6%20Working-22C55E">
   <img alt="Architecture" src="https://img.shields.io/badge/Architecture-6%20Phase-0EA5E9">
   <img alt="Security" src="https://img.shields.io/badge/Security-Air--Gapped%20First-22C55E">
-  <img alt="Tests" src="https://img.shields.io/badge/Tests-29%20Passing-22C55E">
+  <img alt="Tests" src="https://img.shields.io/badge/Tests-35%20Passing-22C55E">
 </p>
 
 <p align="center">
@@ -39,9 +39,9 @@ Core idea:
 
 - Phase 1 is working with deterministic ingestion, schema-aware validation, duplicate checks, and anomaly shaping for downstream clustering.
 - Phase 2 is working end-to-end with embeddings, semantic grouping, pattern reuse, and Chroma persistence.
-- Phase 3 is working with local Ollama inference, hybrid retrieval, structured remediation output, and remediation memory write-back.
+- Phase 3 is working with local Ollama inference, deterministic fast-path remediation, lean retrieval, and remediation memory reuse.
 - Phase 4 is working as a safe execution staging layer with remediation contract checks, sandboxed lambda validation, staged row transforms, and audit artifacts.
-- The current repo can run combined validation flows across Phase 1 -> 2 and Phase 2 -> 3 -> 4.
+- The current repo can run a full interactive Phase 1 -> 6 flow directly from `main.py`.
 - Phase 5 is now implemented as a policy and audit layer for staged execution outputs.
 - Phase 6 now promotes only approved candidates into a production-ready payload with final audit reporting.
 
@@ -127,7 +127,7 @@ flowchart LR
 
 | Area | Status | Notes |
 |---|---|---|
-| Pipeline Orchestrator (`main.py`) | Done | Safe module imports + sequential phase execution |
+| Pipeline Orchestrator (`main.py`) | Done | Interactive dataset prompt, loading animation, sequential execution, and terminal summary |
 | Phase 1 Ingestion | Working | Deterministic validation, schema-aware rules, duplicate checks, and anomaly shaping |
 | Phase 2 Clustering | Working | Embeddings, semantic grouping, Chroma persistence, and durable cluster memory |
 | Phase 3 SLM Remediation | Working | Local Ollama provider, hybrid retrieval, remediation memory write-back, and audited outputs |
@@ -145,6 +145,7 @@ flowchart LR
 - Local Ollama-based remediation generation with structured JSON output.
 - Confidence and guardrail-ready metadata in Phase 3 outputs.
 - Safe Phase 4 execution staging with sandboxed lambda validation and staged row transforms.
+- Interactive CLI runner through `main.py` with dataset prompt, runtime summary, and saved output locations.
 - Local validation through unit tests and combined debug runners up to Phase 6.
 
 ## Repository Layout
@@ -169,36 +170,41 @@ project_nova/
 # 1) Create environment
 python -m venv .venv
 
-# 2) Activate (Windows PowerShell)
-.venv\Scripts\Activate.ps1
-
-# 3) Install project dependencies
+# 2) Install project dependencies
 pip install -r requirements.txt
 
-# 4) Start Ollama and ensure your local model is available
+# 3) Start Ollama and ensure your local model is available
 ollama serve
 ollama pull llama3.1:8b
 
-# 5) Configure Phase 3 for local SLM
+# 4) Configure Phase 3 for local SLM
 # .env
 PHASE3_PROVIDER=ollama
 OLLAMA_MODEL=llama3.1:8b
 OLLAMA_URL=http://127.0.0.1:11434
 
-# 6) Run pipeline
-python main.py
+# 5) Run pipeline with the project virtual environment interpreter
+.\.venv\Scripts\python.exe main.py
+```
+
+Sample production-like dataset included in the repo:
+
+```text
+data/raw/production_like_1000_rows.json
 ```
 
 ## Expected Run Behavior
 
-- The pipeline starts and runs each phase in sequence.
+- The pipeline starts, prompts for a dataset path, and runs each phase in sequence.
+- A terminal spinner shows the currently running phase.
 - Implemented phases update the shared `context` object.
 - Phase 1 reads local input data, applies deterministic validation, and emits clean rows plus anomaly rows.
 - Phase 2 groups anomalies into semantic clusters and persists retrieval memory to ChromaDB.
-- Phase 3 consumes Phase 2 clusters and produces structured remediation suggestions using a local Ollama model.
+- Phase 3 consumes Phase 2 clusters and produces structured remediations using deterministic fast paths, cache reuse, and local Ollama fallback when needed.
 - Phase 4 validates and stages remediation logic against anomaly-linked rows, then writes execution artifacts for downstream guardrails.
 - Phase 5 evaluates staged execution records and writes a guardrail audit report.
 - Phase 6 promotes approved rows into a production-ready payload and writes a final promotion report.
+- The terminal prints a final runtime summary and all saved output locations.
 
 ## Local Validation
 
@@ -238,7 +244,7 @@ Phase 4: staged=3, quarantined=1, applied_rows=12
 ## Tests
 
 Current automated validation status:
-- Master test suite: `29 passed`
+- Master test suite: `35 passed`
 - Covered areas: Phase 1 ingestion, Phase 2 clustering, Phase 3 remediation, Phase 4 execution, Phase 5 guardrails, and Phase 6 promotion
 - Test mode note: Phase 3 unit tests use the `mock` provider for deterministic validation
 
@@ -252,8 +258,11 @@ Run phase-specific suites:
 
 ```bash
 pytest tests/test_ingestion.py -q
+pytest tests/test_clustering.py -q
 pytest tests/test_phase3_slm_remediation.py -q
 pytest tests/test_phase4_execution.py -q
+pytest tests/test_phase5_guardrails.py -q
+pytest tests/test_phase6_promotion.py -q
 ```
 
 Run integration/debug flows:
@@ -265,9 +274,9 @@ python tests/debug_phase23_runner.py
 ```
 
 Observed local benchmark snapshot on the current implementation:
-- `1000` similar anomaly rows: about `43-57 sec` end-to-end on a warm/cold local run
-- Main latency comes from embeddings and local SLM inference, not from Phase 1 or Phase 4
-- Mixed multi-error rows still need additional hardening for fully reliable high-volume benchmarking
+- `1000` production-like rows: about `17.5 sec` end-to-end on the optimized local path
+- `1000` production-like rows: `863` clean rows, `139` anomalies, `139` promoted rows in the benchmark run
+- Main latency now comes primarily from Phase 2 embeddings rather than Phase 3 remediation
 
 ## Design Principles
 
@@ -278,6 +287,6 @@ Observed local benchmark snapshot on the current implementation:
 
 ## Roadmap (Practical Next Steps)
 
-- Add Phase 5 confidence thresholds + circuit breaker + quarantine flow.
-- Add Phase 6 staging tests + production promotion checks.
-- Add unit/integration tests around phase-to-phase context contracts.
+- Add schema-path prompting and richer CLI configuration options in `main.py`.
+- Add API/scheduler triggers on top of the current interactive CLI runner.
+- Add deployment, monitoring, and production storage adapters beyond local artifacts.
