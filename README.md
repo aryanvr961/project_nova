@@ -10,13 +10,13 @@
 
 <p align="center">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white">
-  <img alt="Status" src="https://img.shields.io/badge/Status-Phase%202%20%26%203%20Working-22C55E">
+  <img alt="Status" src="https://img.shields.io/badge/Status-Phase%201--4%20Working-22C55E">
   <img alt="Architecture" src="https://img.shields.io/badge/Architecture-6%20Phase-0EA5E9">
   <img alt="Security" src="https://img.shields.io/badge/Security-Air--Gapped%20First-22C55E">
 </p>
 
 <p align="center">
-  <strong>Semantic anomaly clustering + local SLM remediation for ETL data quality workflows.</strong>
+  <strong>Deterministic ingestion, semantic anomaly clustering, local SLM remediation, and execution staging for ETL data quality workflows.</strong>
 </p>
 
 <p align="center">
@@ -36,10 +36,12 @@ Core idea:
 
 ## Current Snapshot
 
+- Phase 1 is working with deterministic ingestion, schema-aware validation, duplicate checks, and anomaly shaping for downstream clustering.
 - Phase 2 is working end-to-end with embeddings, semantic grouping, pattern reuse, and Chroma persistence.
 - Phase 3 is working with local Ollama inference, hybrid retrieval, structured remediation output, and remediation memory write-back.
-- The current repo can run a combined Phase 2 -> Phase 3 validation flow locally on the sample anomaly dataset.
-- Phase 1, Phase 4, Phase 5, and Phase 6 are still under active development.
+- Phase 4 is working as a safe execution staging layer with remediation contract checks, sandboxed lambda validation, staged row transforms, and audit artifacts.
+- The current repo can run combined validation flows across Phase 1 -> 2 and Phase 2 -> 3 -> 4.
+- Phase 5 and Phase 6 are still under active development.
 
 ## Why This Is Interesting
 
@@ -71,10 +73,11 @@ Project Nova addresses this with a **local-first, semantic clustering and explai
 
 ## End-to-End Flow (Simple Language)
 
-1. **Phase 1 - Ingestion (Scaffold / Planned)**
-   - Intended to read raw data and perform deterministic validation.
-   - Intended to apply schema checks and rule-based anomaly detection.
-   - Intended to split input into clean rows and anomaly rows once implemented.
+1. **Phase 1 - Ingestion (Working)**
+   - Read raw input from local JSON, JSONL, or CSV sources.
+   - Apply deterministic validation for required fields, typed columns, and duplicate checks.
+   - Split data into clean rows and anomaly rows.
+   - Emit downstream-safe anomaly records for Phase 2.
 2. **Phase 2 - Semantic Clustering (Working)**
    - Convert anomaly rows into text and generate embeddings.
    - Group semantically similar anomalies into clusters.
@@ -86,8 +89,11 @@ Project Nova addresses this with a **local-first, semantic clustering and explai
    - Retrieve rule context from static prompts plus Chroma-backed cluster/remediation memory.
    - Send cluster context to a local Ollama SLM.
    - Generate structured transformation logic with confidence, guardrail metadata, and audit-ready outputs.
-4. **Phase 4 - Execution Engine (Scaffold)**
-   - Apply approved transformation rules to all rows belonging to a specific anomaly cluster.
+4. **Phase 4 - Execution Engine (Working)**
+   - Validate Phase 3 remediation contracts before staging execution.
+   - Safely compile and apply approved remediation lambdas to anomaly-linked rows.
+   - Split staged and quarantined remediations.
+   - Persist audit-friendly execution artifacts for downstream guardrails.
 5. **Phase 5 - Guardrails (Scaffold)**
    - Enforce confidence checks, risk routing, and quarantine policies.
 6. **Phase 6 - Promotion (Scaffold)**
@@ -114,22 +120,24 @@ flowchart LR
 | Area | Status | Notes |
 |---|---|---|
 | Pipeline Orchestrator (`main.py`) | Done | Safe module imports + sequential phase execution |
-| Phase 1 Ingestion | Scaffold | Interface/docstring ready, logic pending |
+| Phase 1 Ingestion | Working | Deterministic validation, schema-aware rules, duplicate checks, and anomaly shaping |
 | Phase 2 Clustering | Working | Embeddings, semantic grouping, Chroma persistence, and durable cluster memory |
 | Phase 3 SLM Remediation | Working | Local Ollama provider, hybrid retrieval, remediation memory write-back, and audited outputs |
-| Phase 4 Execution | Scaffold | Structure only |
+| Phase 4 Execution | Working | Contract validation, safe lambda staging, quarantining, and execution artifacts |
 | Phase 5 Guardrails | Scaffold | `run(context)` placeholder |
 | Phase 6 Promotion | Scaffold | `run(context)` placeholder |
-| UI + Tests + Docs | In Progress | Phase 2/3 validation runners and unit tests are available |
+| UI + Tests + Docs | In Progress | Validation runners and unit tests are available through Phase 4 |
 
 ## What Works Today
 
+- Deterministic ingestion with required-field checks, schema hints, and duplicate detection.
 - Semantic clustering of anomaly rows into compact pattern groups.
 - Chroma-backed storage for embeddings, cluster memory, and remediation memory.
 - Retrieval-aware Phase 3 prompting using static rules plus persisted memory.
 - Local Ollama-based remediation generation with structured JSON output.
 - Confidence and guardrail-ready metadata in Phase 3 outputs.
-- Local validation through unit tests and a combined Phase 2 -> Phase 3 debug runner.
+- Safe Phase 4 execution staging with sandboxed lambda validation and staged row transforms.
+- Local validation through unit tests and combined debug runners up to Phase 4.
 
 ## Repository Layout
 
@@ -177,31 +185,45 @@ python main.py
 
 - The pipeline starts and runs each phase in sequence.
 - Implemented phases update the shared `context` object.
+- Phase 1 reads local input data, applies deterministic validation, and emits clean rows plus anomaly rows.
 - Phase 2 groups anomalies into semantic clusters and persists retrieval memory to ChromaDB.
 - Phase 3 consumes Phase 2 clusters and produces structured remediation suggestions using a local Ollama model.
-- Scaffold phases still exist for Phase 1, 4, 5, and 6.
+- Phase 4 validates and stages remediation logic against anomaly-linked rows, then writes execution artifacts for downstream guardrails.
+- Scaffold phases still exist for Phase 5 and 6.
 
 ## Local Validation
 
 ```bash
+# Unit validation for Phase 1
+pytest tests/test_ingestion.py -q
+
 # Unit validation for Phase 3
 pytest tests/test_phase3_slm_remediation.py -q
+
+# Unit validation for Phase 4
+pytest tests/test_phase4_execution.py -q
+
+# Combined Phase 1 -> Phase 2 integration run
+python tests/debug_phase12_runner.py
 
 # Combined Phase 2 -> Phase 3 integration run
 python tests/debug_phase23_runner.py
 ```
 
 Expected current result:
+- Phase 1 emits deterministic anomaly records in a format Phase 2 can consume.
 - Phase 2 forms anomaly clusters from the sample dataset.
 - Phase 3 returns structured remediations for those clusters.
+- Phase 4 stages valid remediations, quarantines unsafe ones, and writes an execution artifact.
 - The local provider path should show `ollama/<model-name>` in the output summary.
 
 Example validation summary:
 
 ```text
-Loaded anomalies: 16
-Phase 2: 16 anomalies -> 4 clusters
-Phase 3: 4 remediations, 0 quarantined, provider=ollama
+Phase 1: 5 rows -> 1 clean, 4 anomalies
+Phase 2: 4 anomalies -> 1 cluster
+Phase 3: 4 remediations, provider=ollama
+Phase 4: staged=3, quarantined=1, applied_rows=12
 ```
 
 ## Design Principles
@@ -213,8 +235,6 @@ Phase 3: 4 remediations, 0 quarantined, provider=ollama
 
 ## Roadmap (Practical Next Steps)
 
-- Implement Phase 1 deterministic validator with schema validation, rule checks, and clean/anomaly dataset separation.
-- Implement Phase 4 safe transformation executor with rollback metadata.
 - Add Phase 5 confidence thresholds + circuit breaker + quarantine flow.
 - Add Phase 6 staging tests + production promotion checks.
 - Add unit/integration tests around phase-to-phase context contracts.
