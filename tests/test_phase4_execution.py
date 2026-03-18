@@ -34,6 +34,7 @@ class Phase4ExecutionTests(unittest.TestCase):
         return [
             {
                 "id": 1,
+                "anomaly_uid": "1:amount:numeric_format_error",
                 "column_name": "amount",
                 "value": "1,200.50",
                 "error_type": "numeric_format_error",
@@ -81,6 +82,25 @@ class Phase4ExecutionTests(unittest.TestCase):
             self.assertEqual(len(result["staged_execution_rows"]), 1)
             self.assertEqual(result["staged_execution_rows"][0]["transformed_value"], "1200.50")
             self.assertEqual(result["staged_execution_rows"][0]["source_row_after"]["amount"], "1200.50")
+
+    def test_applies_when_member_id_uses_anomaly_uid(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            remediation = self._valid_remediation()
+            remediation["code"] = "lambda x: None if x is None else str(x).replace(',', '')"
+            remediation["member_ids"] = ["anomaly_1:amount:numeric_format_error"]
+            remediation["inferred_anomaly_type"] = "type_cast"
+
+            result = phase4_execution.run(
+                {
+                    "vault_dir": tmp_dir,
+                    "remediations": [remediation],
+                    "anomalies": self._anomaly_rows(),
+                }
+            )
+
+            self.assertEqual(result["phase4_summary"]["applied_rows"], 1)
+            self.assertEqual(result["staged_execution_rows"][0]["member_id"], "anomaly_1:amount:numeric_format_error")
+            self.assertEqual(result["staged_execution_rows"][0]["transformed_value"], "1200.50")
 
     def test_quarantine_remediation_is_split_out(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

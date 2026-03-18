@@ -195,6 +195,9 @@ def _safe_json_value(value: Any) -> Any:
 
 def _remediation_id_candidates(member_id: str) -> list[str]:
     candidates = [member_id]
+    if member_id.startswith("anomaly_"):
+        anomaly_uid = member_id[len("anomaly_"):]
+        candidates.append(anomaly_uid)
     if member_id.startswith("row_"):
         candidates.append(member_id[4:])
     return candidates
@@ -205,6 +208,10 @@ def _build_anomaly_index(anomalies: list[dict[str, Any]]) -> dict[str, dict[str,
     for anomaly in anomalies:
         if not isinstance(anomaly, dict):
             continue
+        anomaly_uid = anomaly.get("anomaly_uid")
+        if anomaly_uid not in (None, ""):
+            index[str(anomaly_uid)] = anomaly
+            index[f"anomaly_{anomaly_uid}"] = anomaly
         anomaly_id = anomaly.get("id")
         if anomaly_id is not None:
             index[str(anomaly_id)] = anomaly

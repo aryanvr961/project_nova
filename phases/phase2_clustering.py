@@ -80,7 +80,15 @@ def _row_to_text(row: dict[str, Any]) -> str:
 
 
 def _row_id(row: dict[str, Any], text: str) -> str:
+    anomaly_uid = row.get("anomaly_uid")
+    if anomaly_uid not in (None, ""):
+        return f"anomaly_{anomaly_uid}"
     if "id" in row:
+        column_name = row.get("column_name")
+        error_type = row.get("error_type")
+        if column_name not in (None, "") or error_type not in (None, ""):
+            suffix = f"{column_name}:{error_type}"
+            return f"row_{row['id']}:{suffix}"
         return f"row_{row['id']}"
     digest = hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
     return f"row_{digest}"

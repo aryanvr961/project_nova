@@ -13,6 +13,7 @@
   <img alt="Status" src="https://img.shields.io/badge/Status-Phase%201--4%20Working-22C55E">
   <img alt="Architecture" src="https://img.shields.io/badge/Architecture-6%20Phase-0EA5E9">
   <img alt="Security" src="https://img.shields.io/badge/Security-Air--Gapped%20First-22C55E">
+  <img alt="Tests" src="https://img.shields.io/badge/Tests-29%20Passing-22C55E">
 </p>
 
 <p align="center">
@@ -41,7 +42,8 @@ Core idea:
 - Phase 3 is working with local Ollama inference, hybrid retrieval, structured remediation output, and remediation memory write-back.
 - Phase 4 is working as a safe execution staging layer with remediation contract checks, sandboxed lambda validation, staged row transforms, and audit artifacts.
 - The current repo can run combined validation flows across Phase 1 -> 2 and Phase 2 -> 3 -> 4.
-- Phase 5 and Phase 6 are still under active development.
+- Phase 5 is now implemented as a policy and audit layer for staged execution outputs.
+- Phase 6 now promotes only approved candidates into a production-ready payload with final audit reporting.
 
 ## Why This Is Interesting
 
@@ -61,6 +63,12 @@ This repository includes a detailed technical research report that outlines the 
 - How AI is integrated with deterministic validation layers to detect, cluster, and safely remediate data anomalies in modern data pipelines.
 
 [👉 Click here to read the full Technical Research Report](https://docs.google.com/document/d/1cKEBZS5nA8fz5g_W1S8T49I5LjeO96xW/edit?usp=drivesdk&ouid=117337334576397276483&rtpof=true&sd=true)
+
+The report aligns with the implementation currently available in this repository:
+- Phase 1 through Phase 4 are implemented and validated locally.
+- Phase 5 is implemented for guardrail policy enforcement and audit reporting.
+- Phase 6 is implemented for final promotion gating and production-ready payload generation.
+- The current codebase is strongest as a working local-first prototype for anomaly detection, clustering, remediation generation, and staged execution.
 
 ## Why this project exists
 
@@ -94,10 +102,10 @@ Project Nova addresses this with a **local-first, semantic clustering and explai
    - Safely compile and apply approved remediation lambdas to anomaly-linked rows.
    - Split staged and quarantined remediations.
    - Persist audit-friendly execution artifacts for downstream guardrails.
-5. **Phase 5 - Guardrails (Scaffold)**
-   - Enforce confidence checks, risk routing, and quarantine policies.
-6. **Phase 6 - Promotion (Scaffold)**
-   - Promote validated staging data to production.
+5. **Phase 5 - Guardrails (Working)**
+   - Enforce confidence checks, risk routing, review gates, circuit breaker logic, and quarantine policies.
+6. **Phase 6 - Promotion (Working)**
+   - Promote only guardrail-approved staging data and write a final promotion artifact.
 
 ## Architecture Diagram
 
@@ -124,8 +132,8 @@ flowchart LR
 | Phase 2 Clustering | Working | Embeddings, semantic grouping, Chroma persistence, and durable cluster memory |
 | Phase 3 SLM Remediation | Working | Local Ollama provider, hybrid retrieval, remediation memory write-back, and audited outputs |
 | Phase 4 Execution | Working | Contract validation, safe lambda staging, quarantining, and execution artifacts |
-| Phase 5 Guardrails | Scaffold | `run(context)` placeholder |
-| Phase 6 Promotion | Scaffold | `run(context)` placeholder |
+| Phase 5 Guardrails | Working | Policy checks, circuit breaker, review routing, promotion candidates, and audit artifacts |
+| Phase 6 Promotion | Working | Promotion gating, approved-row payload generation, and final audit artifacts |
 | UI + Tests + Docs | In Progress | Validation runners and unit tests are available through Phase 4 |
 
 ## What Works Today
@@ -137,7 +145,7 @@ flowchart LR
 - Local Ollama-based remediation generation with structured JSON output.
 - Confidence and guardrail-ready metadata in Phase 3 outputs.
 - Safe Phase 4 execution staging with sandboxed lambda validation and staged row transforms.
-- Local validation through unit tests and combined debug runners up to Phase 4.
+- Local validation through unit tests and combined debug runners up to Phase 6.
 
 ## Repository Layout
 
@@ -189,7 +197,8 @@ python main.py
 - Phase 2 groups anomalies into semantic clusters and persists retrieval memory to ChromaDB.
 - Phase 3 consumes Phase 2 clusters and produces structured remediation suggestions using a local Ollama model.
 - Phase 4 validates and stages remediation logic against anomaly-linked rows, then writes execution artifacts for downstream guardrails.
-- Scaffold phases still exist for Phase 5 and 6.
+- Phase 5 evaluates staged execution records and writes a guardrail audit report.
+- Phase 6 promotes approved rows into a production-ready payload and writes a final promotion report.
 
 ## Local Validation
 
@@ -225,6 +234,40 @@ Phase 2: 4 anomalies -> 1 cluster
 Phase 3: 4 remediations, provider=ollama
 Phase 4: staged=3, quarantined=1, applied_rows=12
 ```
+
+## Tests
+
+Current automated validation status:
+- Master test suite: `29 passed`
+- Covered areas: Phase 1 ingestion, Phase 2 clustering, Phase 3 remediation, Phase 4 execution, Phase 5 guardrails, and Phase 6 promotion
+- Test mode note: Phase 3 unit tests use the `mock` provider for deterministic validation
+
+Run the full test suite:
+
+```bash
+pytest -q
+```
+
+Run phase-specific suites:
+
+```bash
+pytest tests/test_ingestion.py -q
+pytest tests/test_phase3_slm_remediation.py -q
+pytest tests/test_phase4_execution.py -q
+```
+
+Run integration/debug flows:
+
+```bash
+python tests/debug_phase1_runner.py
+python tests/debug_phase12_runner.py
+python tests/debug_phase23_runner.py
+```
+
+Observed local benchmark snapshot on the current implementation:
+- `1000` similar anomaly rows: about `43-57 sec` end-to-end on a warm/cold local run
+- Main latency comes from embeddings and local SLM inference, not from Phase 1 or Phase 4
+- Mixed multi-error rows still need additional hardening for fully reliable high-volume benchmarking
 
 ## Design Principles
 

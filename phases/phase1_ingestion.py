@@ -42,12 +42,12 @@ def _normalize_path(path_value: str | None) -> Path | None:
 
 
 def _load_csv(path: Path) -> list[dict[str, Any]]:
-    with path.open("r", encoding="utf-8", newline="") as file:
+    with path.open("r", encoding="utf-8-sig", newline="") as file:
         return [dict(row) for row in csv.DictReader(file)]
 
 
 def _load_json(path: Path) -> list[dict[str, Any]]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload = json.loads(path.read_text(encoding="utf-8-sig"))
     if isinstance(payload, list):
         return [item for item in payload if isinstance(item, dict)]
     if isinstance(payload, dict):
@@ -59,7 +59,7 @@ def _load_json(path: Path) -> list[dict[str, Any]]:
 
 def _load_jsonl(path: Path) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
         line = line.strip()
         if not line:
             continue
@@ -104,7 +104,7 @@ def _load_validation_schema(context: dict[str, Any]) -> dict[str, Any]:
 
     schema_path = _normalize_path(context.get("schema_path"))
     if schema_path is not None and schema_path.exists():
-        payload = json.loads(schema_path.read_text(encoding="utf-8"))
+        payload = json.loads(schema_path.read_text(encoding="utf-8-sig"))
         if isinstance(payload, dict):
             return payload
     return {}
@@ -163,8 +163,10 @@ def _make_anomaly(
     error_type: str,
     anomaly_hint: str,
 ) -> dict[str, Any]:
+    anomaly_uid = f"{row_id}:{column_name}:{error_type}"
     return {
         "id": row_id,
+        "anomaly_uid": anomaly_uid,
         "column_name": column_name,
         "value": value,
         "error_type": error_type,

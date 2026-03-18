@@ -40,6 +40,7 @@ REMEDIATION_MEMORY_COLLECTION = "nova_remediation_memory"
 CONFIDENCE_THRESHOLD = 0.75
 RETRIEVAL_TOP_K = 5
 VALID_TRANSFORMATION_TYPES = {"lambda", "rule", "quarantine"}
+FAST_PATH_ANOMALY_TYPES = {"date_format", "type_cast", "null_fill"}
 
 DATE_PATTERN = re.compile(r"\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}|[A-Za-z]+ \d{1,2} \d{4}")
 NUMERIC_PATTERN = re.compile(r"^-?\d+([.,]\d+)?$")
@@ -214,6 +215,22 @@ def _build_cluster_profile(cluster: ClusterInput) -> dict[str, Any]:
     }
 
 
+def _cluster_hint_count(cluster: ClusterInput, label: str) -> int:
+    return int(cluster.cluster_profile.get("hint_distribution", {}).get(label, 0) or 0)
+
+
+def _is_duplicate_cluster(cluster: ClusterInput) -> bool:
+    return _cluster_hint_count(cluster, "duplicate_value_error") > 0
+
+
+def _is_fast_path_cluster(cluster: ClusterInput) -> bool:
+    if cluster.inferred_anomaly_type in FAST_PATH_ANOMALY_TYPES:
+        return True
+    if _is_duplicate_cluster(cluster):
+        return True
+    return False
+
+
 def _load_static_rule_documents() -> list[dict[str, Any]]:
     documents: list[dict[str, Any]] = []
     for source_path in (SYSTEM_RULES_FILE, REMEDIATION_PROMPT_FILE):
@@ -332,8 +349,9 @@ def _load_historical_remediation_documents(cluster: ClusterInput) -> list[dict[s
 def _load_retrieval_documents(cluster: ClusterInput) -> list[dict[str, Any]]:
     documents: list[dict[str, Any]] = []
     documents.extend(_load_static_rule_documents())
-    documents.extend(_load_cluster_memory_documents(cluster))
-    documents.extend(_load_historical_remediation_documents(cluster))
+    if not _is_fast_path_cluster(cluster):
+        documents.extend(_load_cluster_memory_documents(cluster))
+        documents.extend(_load_historical_remediation_documents(cluster))
     return documents
 
 
@@ -386,6 +404,24 @@ def _retrieve_rule_context(query: str, documents: list[dict[str, Any]], top_k: i
 
 def _build_rule_context(cluster: ClusterInput) -> dict[str, Any]:
     documents = _load_retrieval_documents(cluster)
+    if _is_fast_path_cluster(cluster):
+        retrieved = [
+            {
+                "id": str(document.get("id", "")),
+                "source": str(document.get("source", "unknown")),
+                "text": str(document.get("text", "")),
+                "score": round(float(document.get("source_weight", 0.0) or 0.0), 4),
+            }
+            for document in documents[:2]
+        ]
+        return {
+            "retrieved_rules": retrieved,
+            "cluster_pattern_key": cluster.pattern_key,
+            "cache_hit": cluster.cache_hit,
+            "target_column": cluster.target_column,
+            "retrieval_sources": sorted({item["source"] for item in retrieved}),
+        }
+
     query_text = " ".join(
         [
             cluster.cluster_uid,
@@ -473,6 +509,117 @@ def _call_provider(cluster: ClusterInput) -> tuple[str, str]:
         system_prompt=SYSTEM_PROMPT,
         cluster=cluster,
         mock_response_builder=_mock_response,
+    )
+
+
+def _fast_path_payload(cluster: ClusterInput) -> tuple[dict[str, Any], str] | None:
+    sample_value = cluster.sample_values[0] if cluster.sample_values else "null"
+    fallback_value = "null"
+
+    if _is_duplicate_cluster(cluster):
+        payload = {
+            "transformation_type": "rule",
+            "code": "lambda x: x",
+            "confidence_score": 0.93,
+            "reasoning": "Detected duplicate-value cluster and selected a no-mutation deterministic hold rule.",
+            "fallback_value": str(sample_value),
+        }
+        return payload, "deterministic/duplicate_hold"
+
+    if cluster.inferred_anomaly_type == "date_format":
+        payload = {
+            "transformation_type": "rule",
+            "code": "lambda x: x",
+            "confidence_score": 0.91,
+            "reasoning": "Detected date-format cluster and selected a deterministic staging rule for guarded downstream handling.",
+            "fallback_value": str(sample_value),
+        }
+        return payload, "deterministic/date_format"
+
+    if cluster.inferred_anomaly_type == "type_cast":
+        payload = {
+            "transformation_type": "lambda",
+            "code": "lambda x: None if x is None else str(x).replace(',', '').strip()",
+            "confidence_score": 0.92,
+            "reasoning": "Detected numeric formatting noise and selected deterministic string normalization.",
+            "fallback_value": fallback_value,
+        }
+        return payload, "deterministic/type_cast"
+
+    if cluster.inferred_anomaly_type == "null_fill":
+        payload = {
+            "transformation_type": "rule",
+            "code": "lambda x: x if x is not None else None",
+            "confidence_score": 0.9,
+            "reasoning": "Detected null-heavy cluster and selected a null-preserving deterministic rule.",
+            "fallback_value": fallback_value,
+        }
+        return payload, "deterministic/null_fill"
+
+    return None
+
+
+def _load_cached_remediation(cluster: ClusterInput) -> RemediationResult | None:
+    if not REMEDIATION_MEMORY_FILE.exists():
+        return None
+
+    best_row: dict[str, Any] | None = None
+    best_score = -1.0
+    for line in REMEDIATION_MEMORY_FILE.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            row = json.loads(line)
+        except Exception:
+            continue
+        if not isinstance(row, dict):
+            continue
+
+        score = 0.0
+        if row.get("pattern_key") == cluster.pattern_key:
+            score += 1.0
+        if row.get("target_column") == cluster.target_column:
+            score += 0.2
+        if row.get("inferred_anomaly_type") == cluster.inferred_anomaly_type:
+            score += 0.2
+        if score > best_score:
+            best_score = score
+            best_row = row
+
+    if best_row is None or best_score < 1.0:
+        return None
+
+    confidence_score = float(best_row.get("confidence_score", 0.0) or 0.0)
+    transformation_type = str(best_row.get("transformation_type", "quarantine"))
+    code = str(best_row.get("code", "lambda x: x"))
+    if confidence_score < CONFIDENCE_THRESHOLD or transformation_type not in VALID_TRANSFORMATION_TYPES:
+        return None
+
+    guardrails = _build_guardrail_plan(
+        transformation_type=transformation_type,
+        confidence_score=confidence_score,
+        inferred_anomaly_type=cluster.inferred_anomaly_type,
+    )
+    return RemediationResult(
+        cluster_id=cluster.cluster_id,
+        cluster_uid=cluster.cluster_uid,
+        transformation_type=transformation_type,
+        code=code,
+        confidence_score=confidence_score,
+        reasoning=str(best_row.get("reasoning", "Loaded remediation from pattern cache.")),
+        fallback_value=str(best_row.get("fallback_value", "null")),
+        inferred_anomaly_type=cluster.inferred_anomaly_type,
+        model_used="cache/remediation_memory",
+        member_ids=cluster.member_ids,
+        size=cluster.size,
+        cache_hit=True,
+        pattern_key=cluster.pattern_key,
+        guardrail_action=guardrails["guardrail_action"],
+        risk_level=guardrails["risk_level"],
+        requires_human_review=guardrails["requires_human_review"],
+        validation_checks=guardrails["validation_checks"],
+        raw_response=json.dumps(best_row, ensure_ascii=True, default=str),
     )
 
 
@@ -631,6 +778,15 @@ def _normalize_cluster(raw_cluster: dict[str, Any]) -> ClusterInput:
 
 
 def _remediate_cluster(cluster: ClusterInput) -> RemediationResult:
+    cached = _load_cached_remediation(cluster)
+    if cached is not None:
+        return cached
+
+    fast_path = _fast_path_payload(cluster)
+    if fast_path is not None:
+        payload, model_used = fast_path
+        return _parse_response(json.dumps(payload, ensure_ascii=True), cluster, model_used)
+
     try:
         raw, model_used = _call_provider(cluster)
     except Exception as exc:
