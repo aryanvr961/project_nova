@@ -10,9 +10,17 @@
 
 <p align="center">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white">
-  <img alt="Status" src="https://img.shields.io/badge/Status-MVP%20Scaffold-F59E0B">
+  <img alt="Status" src="https://img.shields.io/badge/Status-Phase%202%20%26%203%20Working-22C55E">
   <img alt="Architecture" src="https://img.shields.io/badge/Architecture-6%20Phase-0EA5E9">
   <img alt="Security" src="https://img.shields.io/badge/Security-Air--Gapped%20First-22C55E">
+</p>
+
+<p align="center">
+  <strong>Semantic anomaly clustering + local SLM remediation for ETL data quality workflows.</strong>
+</p>
+
+<p align="center">
+  Built to detect recurring anomaly patterns, compress them into actionable clusters, and generate structured remediation logic without relying on external cloud LLMs.
 </p>
 
 ## What is Project Nova?
@@ -25,6 +33,20 @@ Core idea:
 - Cluster similar anomaly patterns.
 - Use AI to generate deterministic transformation rules, not direct blind edits on the data.
 - Apply fixes with guardrails, audit logs, and reversible workflows.
+
+## Current Snapshot
+
+- Phase 2 is working end-to-end with embeddings, semantic grouping, pattern reuse, and Chroma persistence.
+- Phase 3 is working with local Ollama inference, hybrid retrieval, structured remediation output, and remediation memory write-back.
+- The current repo can run a combined Phase 2 -> Phase 3 validation flow locally on the sample anomaly dataset.
+- Phase 1, Phase 4, Phase 5, and Phase 6 are still under active development.
+
+## Why This Is Interesting
+
+- Instead of fixing anomalies row-by-row, Project Nova clusters similar failures into reusable anomaly families.
+- Instead of letting a model edit data directly, it generates structured transformation logic with confidence and audit context.
+- Instead of depending on hosted LLM APIs, the current remediation path is aligned to a local-first Ollama workflow.
+- Instead of treating retrieval as prompt stuffing, the system persists cluster and remediation memory for future reuse.
 
 ## 📄 Research Report & System Architecture
 
@@ -45,22 +67,25 @@ Traditional ETL tools are optimized for data movement but lack semantic understa
 - Throughput issues when anomaly volume spikes.
 - Compliance risk when sensitive data is sent to external LLM APIs.
 
-Project Nova addresses this with a **local-first, semantic clustering and explainable remediation architecture** designed to detect anomaly patterns and safely generate transformation logic..
+Project Nova addresses this with a **local-first, semantic clustering and explainable remediation architecture** designed to detect anomaly patterns and safely generate transformation logic.
 
 ## End-to-End Flow (Simple Language)
 
-1. **Phase 1 - Ingestion (Deterministic Checks)**
-   - Read raw data.
-   - Run schema and rule-based validation.
-   - Split into clean rows and anomaly rows.
-2. **Phase 2 - Semantic Clustering (Implemented)**
+1. **Phase 1 - Ingestion (Scaffold / Planned)**
+   - Intended to read raw data and perform deterministic validation.
+   - Intended to apply schema checks and rule-based anomaly detection.
+   - Intended to split input into clean rows and anomaly rows once implemented.
+2. **Phase 2 - Semantic Clustering (Working)**
    - Convert anomaly rows into text and generate embeddings.
    - Group semantically similar anomalies into clusters.
-   - Persist vectors in ChromaDB.
+   - Persist raw embeddings and cluster memory in ChromaDB.
    - Reuse pattern cache to detect repeated anomaly signatures.
-3. **Phase 3 - SLM Remediation (Scaffold)**
-   - Send cluster samples to the local model.
-   - Generate safe, structured transformation logic in a restricted output format (sandboxed deterministic rules) that can be executed safely by downstream phases.
+   - Store durable cluster metadata for retrieval-aware remediation.
+3. **Phase 3 - SLM Remediation (Working)**
+   - Normalize Phase 2 clusters into retrieval-aware remediation inputs.
+   - Retrieve rule context from static prompts plus Chroma-backed cluster/remediation memory.
+   - Send cluster context to a local Ollama SLM.
+   - Generate structured transformation logic with confidence, guardrail metadata, and audit-ready outputs.
 4. **Phase 4 - Execution Engine (Scaffold)**
    - Apply approved transformation rules to all rows belonging to a specific anomaly cluster.
 5. **Phase 5 - Guardrails (Scaffold)**
@@ -90,12 +115,21 @@ flowchart LR
 |---|---|---|
 | Pipeline Orchestrator (`main.py`) | Done | Safe module imports + sequential phase execution |
 | Phase 1 Ingestion | Scaffold | Interface/docstring ready, logic pending |
-| Phase 2 Clustering | Working | Embeddings + cosine clustering + Chroma persistence |
-| Phase 3 SLM Remediation | Scaffold | `run(context)` placeholder |
+| Phase 2 Clustering | Working | Embeddings, semantic grouping, Chroma persistence, and durable cluster memory |
+| Phase 3 SLM Remediation | Working | Local Ollama provider, hybrid retrieval, remediation memory write-back, and audited outputs |
 | Phase 4 Execution | Scaffold | Structure only |
 | Phase 5 Guardrails | Scaffold | `run(context)` placeholder |
 | Phase 6 Promotion | Scaffold | `run(context)` placeholder |
-| UI + Tests + Docs | Scaffold-heavy | Base structure ready for expansion |
+| UI + Tests + Docs | In Progress | Phase 2/3 validation runners and unit tests are available |
+
+## What Works Today
+
+- Semantic clustering of anomaly rows into compact pattern groups.
+- Chroma-backed storage for embeddings, cluster memory, and remediation memory.
+- Retrieval-aware Phase 3 prompting using static rules plus persisted memory.
+- Local Ollama-based remediation generation with structured JSON output.
+- Confidence and guardrail-ready metadata in Phase 3 outputs.
+- Local validation through unit tests and a combined Phase 2 -> Phase 3 debug runner.
 
 ## Repository Layout
 
@@ -122,10 +156,20 @@ python -m venv .venv
 # 2) Activate (Windows PowerShell)
 .venv\Scripts\Activate.ps1
 
-# 3) Install dependencies (minimum expected)
-pip install polars chromadb sentence-transformers
+# 3) Install project dependencies
+pip install -r requirements.txt
 
-# 4) Run pipeline
+# 4) Start Ollama and ensure your local model is available
+ollama serve
+ollama pull llama3.1:8b
+
+# 5) Configure Phase 3 for local SLM
+# .env
+PHASE3_PROVIDER=ollama
+OLLAMA_MODEL=llama3.1:8b
+OLLAMA_URL=http://127.0.0.1:11434
+
+# 6) Run pipeline
 python main.py
 ```
 
@@ -133,8 +177,32 @@ python main.py
 
 - The pipeline starts and runs each phase in sequence.
 - Implemented phases update the shared `context` object.
-- Scaffold phases currently set phase status keys (for example, `phase3_status = "placeholder"`).
-- Phase 2 processes anomaly files from `data/anomalies/`.
+- Phase 2 groups anomalies into semantic clusters and persists retrieval memory to ChromaDB.
+- Phase 3 consumes Phase 2 clusters and produces structured remediation suggestions using a local Ollama model.
+- Scaffold phases still exist for Phase 1, 4, 5, and 6.
+
+## Local Validation
+
+```bash
+# Unit validation for Phase 3
+pytest tests/test_phase3_slm_remediation.py -q
+
+# Combined Phase 2 -> Phase 3 integration run
+python tests/debug_phase23_runner.py
+```
+
+Expected current result:
+- Phase 2 forms anomaly clusters from the sample dataset.
+- Phase 3 returns structured remediations for those clusters.
+- The local provider path should show `ollama/<model-name>` in the output summary.
+
+Example validation summary:
+
+```text
+Loaded anomalies: 16
+Phase 2: 16 anomalies -> 4 clusters
+Phase 3: 4 remediations, 0 quarantined, provider=ollama
+```
 
 ## Design Principles
 
@@ -146,7 +214,6 @@ python main.py
 ## Roadmap (Practical Next Steps)
 
 - Implement Phase 1 deterministic validator with schema validation, rule checks, and clean/anomaly dataset separation.
-- Complete Phase 3 prompt-constrained SLM output schema.
 - Implement Phase 4 safe transformation executor with rollback metadata.
 - Add Phase 5 confidence thresholds + circuit breaker + quarantine flow.
 - Add Phase 6 staging tests + production promotion checks.
