@@ -187,6 +187,21 @@ OLLAMA_URL=http://127.0.0.1:11434
 .\.venv\Scripts\python.exe main.py
 ```
 
+### UI Dashboard
+
+Project Nova now includes a local Streamlit dashboard for upload-driven runs:
+
+```bash
+.\.venv\Scripts\python.exe -m streamlit run ui\dashboard.py
+```
+
+What the dashboard provides:
+- Upload input data in `CSV`, `JSON`, or `JSONL`
+- Optionally upload a schema JSON for Phase 1 validation
+- Run the full Phase 1 -> 6 flow from the browser
+- Inspect phase-by-phase metrics, row previews, and promotion blockers
+- Download every generated artifact individually or as a single zipped run bundle
+
 Sample production-like dataset included in the repo:
 
 ```text
@@ -277,6 +292,32 @@ Observed local benchmark snapshot on the current implementation:
 - `1000` production-like rows: about `17.5 sec` end-to-end on the optimized local path
 - `1000` production-like rows: `863` clean rows, `139` anomalies, `139` promoted rows in the benchmark run
 - Main latency now comes primarily from Phase 2 embeddings rather than Phase 3 remediation
+
+## Stress Test Report
+
+Observed local stress-test snapshot on the current implementation:
+- Dataset: `100,000` production-style CSV rows
+- Runtime: about `183.9 sec` end-to-end on the local full pipeline path
+- Input rows: `100,000`
+- Anomalies detected: `1,785`
+- Clusters formed: `2`
+- Remediations generated: `2`
+- Guardrail-approved clusters: `0`
+- Promoted rows: `0`
+- Promotion status: `blocked` because `guardrail_review_pending`
+
+Phase timing snapshot from the stress run:
+- Phase 1 Ingestion: about `3.28 sec`
+- Phase 2 Clustering: about `117.07 sec`
+- Phase 3 Remediation: about `63.58 sec`
+- Phase 4 Execution: about `0.006 sec`
+- Phase 5 Guardrails: about `0.004 sec`
+- Phase 6 Promotion: about `0.001 sec`
+
+Stress-test interpretation:
+- Throughput at `100,000` rows is strong for a local-first prototype running validation, embeddings, clustering, remediation, execution staging, and guardrails in one flow.
+- The main runtime bottlenecks are currently Phase 2 embedding and clustering work, followed by Phase 3 local SLM remediation.
+- The stress run shows that scale throughput is promising, while approval quality and cold-start latency still need optimization before production-ready claims.
 
 ## Design Principles
 
