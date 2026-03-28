@@ -297,7 +297,7 @@ Observed local benchmark snapshot on the current implementation:
 
 Observed local stress-test snapshot on the current implementation:
 - Dataset: `100,000` production-style CSV rows
-- Runtime: about `183.9 sec` end-to-end on the local full pipeline path
+- Runtime: about `74.6 sec` end-to-end on the local heat-test path
 - Input rows: `100,000`
 - Anomalies detected: `1,785`
 - Clusters formed: `2`
@@ -307,17 +307,18 @@ Observed local stress-test snapshot on the current implementation:
 - Promotion status: `blocked` because `guardrail_review_pending`
 
 Phase timing snapshot from the stress run:
-- Phase 1 Ingestion: about `3.28 sec`
-- Phase 2 Clustering: about `117.07 sec`
-- Phase 3 Remediation: about `63.58 sec`
+- Phase 1 Ingestion: about `2.57 sec`
+- Phase 2 Clustering: about `70.03 sec`
+- Phase 3 Remediation: about `2.03 sec`
 - Phase 4 Execution: about `0.006 sec`
-- Phase 5 Guardrails: about `0.004 sec`
+- Phase 5 Guardrails: about `0.005 sec`
 - Phase 6 Promotion: about `0.001 sec`
 
 Stress-test interpretation:
 - Throughput at `100,000` rows is strong for a local-first prototype running validation, embeddings, clustering, remediation, execution staging, and guardrails in one flow.
-- The main runtime bottlenecks are currently Phase 2 embedding and clustering work, followed by Phase 3 local SLM remediation.
-- The stress run shows that scale throughput is promising, while approval quality and cold-start latency still need optimization before production-ready claims.
+- This heat-test run shows a major improvement over the earlier local benchmark, with total runtime dropping from about `183.9 sec` to about `74.6 sec`.
+- The main remaining runtime bottleneck is Phase 2 embedding and clustering work, while Phase 3 latency improved sharply in the GPU-assisted run.
+- The heat-test result makes the performance story much stronger, while approval quality and cluster granularity still need optimization before production-ready claims.
 
 ## Design Principles
 
